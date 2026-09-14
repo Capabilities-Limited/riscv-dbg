@@ -42,7 +42,7 @@ reentry_intmode:
 
 // Common code shared between entry and re-entry cases
 #ifdef SND_SCRATCH
-#define GET_HART_ID            //
+#define SETUP                  //
         fence                  // This fence is required because the execution may have written something
                                // into the Abstract Data or Program Buffer registers.
         csrw CSR_DSCRATCH0, s0 // Save s0 to allow signaling MHARTID
@@ -50,19 +50,17 @@ reentry_intmode:
         auipc a0, 0            // Get PC
         srli a0, a0, 12        // And throw away lower 12 bits to get the DM base
         slli a0, a0, 12        //
-        csrr s0, CSR_MHARTID   //
         modesw.int             //
 #else
-#define GET_HART_ID            //
+#define SETUP                  //
         fence                  // This fence is required because the execution may have written something
                                // into the Abstract Data or Program Buffer registers.
         csrw CSR_DSCRATCH0, s0 // Save s0 to allow signaling MHARTID
-        csrr s0, CSR_MHARTID   //
         modesw.int             //
 #endif
 
 _reentry_capmode:
-        GET_HART_ID
+        SETUP
 #ifdef SND_SCRATCH
         sw   s0, CAPMODE(a0)
         add  s0, s0, a0
@@ -72,7 +70,7 @@ _reentry_capmode:
         jal zero, entry_loop
 
 _reentry_intmode:
-        GET_HART_ID
+        SETUP
 #ifdef SND_SCRATCH
         sw   s0, INTMODE(a0)
         add  s0, s0, a0
@@ -82,12 +80,13 @@ _reentry_intmode:
         jal zero, entry_loop
 
 _entry:
-        GET_HART_ID
+        SETUP
         // We continue to let the hart know that we are halted in order that
         // a DM which was reset is still made aware that a hart is halted.
         // We keep checking both whether there is something the debugger wants
         // us to do, or whether we should resume.
 entry_loop:
+        csrr s0, CSR_MHARTID
 #ifdef SND_SCRATCH
         sw   s0, HALTED(a0)
         add  s0, s0, a0
