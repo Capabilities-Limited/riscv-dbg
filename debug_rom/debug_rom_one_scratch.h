@@ -44,7 +44,7 @@ uint32_t reset_vec[reset_vec_size] = {
     0x12001033,
     0x00040663,
     0x14001033,
-    0xf5cff06f,
-    0xf58ff06f,
+    0xa5dff06f,
+    0xa59ff06f,
     0x00000000
 };

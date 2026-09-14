@@ -25,8 +25,8 @@ module debug_rom_one_scratch (
 
   logic [RomSize-1:0][63:0] mem;
   assign mem = {
-    64'h00000000_f58ff06f,
-    64'hf5cff06f_14001033,
+    64'h00000000_a59ff06f,
+    64'ha5dff06f_14001033,
     64'h00040663_12001033,
     64'h10052223_14001033,
     64'h00447413_40044403,

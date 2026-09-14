@@ -179,12 +179,13 @@ going_capmode:
 
         // END OF ACTUAL "ROM" CONTENTS. BELOW IS JUST FOR LINKER SCRIPT.
 
-.section .whereto
-whereto:
-        nop
+//whereto:
+//      nop
         // Variable "ROM" This is : jal x0 abstract, jal x0 program_buffer,
         //                or jal x0 resume, as desired.
         //                Debug Module state machine tracks what is 'desired'.
         //                We don't need/want to use jalr here because all of the
         //                Variable ROM contents are set by
         //                Debug Module before setting the OK_GO byte.
+        //                NOTE: this address is assigned as a constant in the
+        //                      linker script
