@@ -25,14 +25,14 @@
         // their GO or RESUME bit is set.
 
 entry:
-       jal zero, _entry
-       nop
+        jal zero, _entry
+        nop
 resume:
-       jal zero, _resume
-       nop
+        jal zero, _resume
+        nop
 exception:
-       jal zero, _exception
-       nop
+        jal zero, _exception
+        nop
 
 
 
