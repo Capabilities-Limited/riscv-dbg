@@ -9,12 +9,15 @@
 #define GOING     0x104
 #define RESUMING  0x108
 #define EXCEPTION 0x10C
+#define INTMODE   0x110
+#define CAPMODE   0x114
 
 // Region of memory where each hart has 1
 // byte to read.
 #define FLAGS 0x400
 #define FLAG_GO     0
 #define FLAG_RESUME 1
+#define FLAG_INT_MODE 2
 
         .option norvc
         .global entry
@@ -23,13 +26,20 @@
         // Entry location on ebreak, Halt, or Breakpoint
         // It is the same for all harts. They branch when
         // their GO or RESUME bit is set.
+        // For CHERI, we always enter in capmode
 
 entry:
         jal zero, _entry
 resume:
         jal zero, _resume
-exception:
-        jal zero, _exception
+exception_capmode:
+        jal zero, _exception_capmode
+exception_intmode:
+        jal zero, _exception_intmode
+reentry_capmode:
+        jal zero, _reentry_capmode
+reentry_intmode:
+        jal zero, _reentry_intmode
 
 // Register used to hold base address for DM memory-mapped accesses
 #ifdef SND_SCRATCH
@@ -78,6 +88,16 @@ exception:
         GET_DM_BASE
 
 
+_reentry_capmode:
+        SETUP
+        sw s0, CAPMODE(ADDR_REG) // Save that the progbuf finished in capmode
+        jal zero, entry_loop
+
+_reentry_intmode:
+        SETUP
+        sw s0, INTMODE(ADDR_REG) // Save that the progbuf finished in intmode
+        jal zero, entry_loop
+
 _entry:
         SETUP
         // We continue to let the hart know that we are halted in order that
@@ -102,23 +122,48 @@ entry_loop:
         bnez s0, resume
         jal  zero, entry_loop
 
-_exception:
-        // We can only get here due to an exception while in debug mode. Hence,
-        // we do not need to save a0 to a scratch register as it has already
-        // been saved on debug entry.
-        // It is safe to always restore the scratch registers here as they must
-        // have been saved on debug entry. Restoring them here avoids issues
-        // with registers being overwritten by exceptions occuring during
-        // program buffer execution.
-        GET_DM_BASE
+// We can only get exceptions due to an exception while in debug mode.
+// Hence, we do not need to save a0 to a scratch register as it has already
+// been saved on debug entry.
+// It is safe to always restore the scratch registers here as they must
+// have been saved on debug entry. Restoring them here avoids issues
+// with registers being overwritten by exceptions occuring during
+// program buffer execution.
+// TODO: I'm not sure about the above as the progbuf might have been using
+// the scratch registers: see https://github.com/pulp-platform/riscv-dbg/issues/207
+// However, we do have to save whether we finished execution in intmode or capmode.
+_exception_capmode:
+        modesw.int                     // Switch to intmode for mem access
         sw   zero, EXCEPTION(ADDR_REG) // Let debug module know you got an exception.
         modesw.cap                     // Return to capmode so we restore for capabilities from registers
         RESTORE
-        ebreak
+        ebreak                         // Ebreak in capmode to preserve the mode we took exception from
+
+_exception_intmode:
+        modesw.int                     // Switch to intmode for mem access
+        sw   zero, EXCEPTION(ADDR_REG) // Let debug module know you got an exception.
+        modesw.cap                     // Return to capmode so we restore for capabilities from registers
+        RESTORE
+        modesw.int
+        ebreak                         // Ebreak in intmode to preserve the mode we took exception from
 
 going:
         sw zero, GOING(ADDR_REG)       // When debug module sees this write, the GO flag is reset.
+        csrr s0, mhartid               // Ask the debug module what the target mode is
+#ifdef SND_SCRATCH
+        add s0, s0, a0
+#endif
+        lbu s0, FLAGS(s0)
+        andi s0, s0, (1 << FLAG_INT_MODE)
         modesw.cap                     // Return to capmode so we restore for capabilities from registers
+        beqz s0, going_capmode         // Different codepaths from here for intmode and capmode: there's
+                                       // nowhere else to save this information after we restore registers
+                                       // (which requires capmode)
+going_intmode:
+        RESTORE
+        modesw.int
+        jal zero, whereto
+going_capmode:
         RESTORE
         jal zero, whereto
 
