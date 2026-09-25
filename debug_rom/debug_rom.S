@@ -71,7 +71,10 @@ exception:
                                  /* execution may have written something   */ \
                                  /* into the Abstract Data or Program      */ \
                                  /* Buffer registers                       */ \
-        SAVE                   ;                                              \
+        SAVE                   ; /* Save registers. For CHERI, this needs  */ \
+                                 /* to save full capabilities. We assume   */ \
+                                 /* we enter the debug ROM in capmode      */ \
+        modesw.int             ; /* Switch to int mode for mem accesses    */ \
         GET_DM_BASE
 
 
@@ -108,18 +111,22 @@ _exception:
         // with registers being overwritten by exceptions occuring during
         // program buffer execution.
         GET_DM_BASE
-        sw   zero, EXCEPTION(ADDR_REG)     // Let debug module know you got an exception.
+        sw   zero, EXCEPTION(ADDR_REG) // Let debug module know you got an exception.
+        modesw.cap                     // Return to capmode so we restore for capabilities from registers
         RESTORE
         ebreak
 
 going:
-        sw zero, GOING(ADDR_REG)      // When debug module sees this write, the GO flag is reset.
+        sw zero, GOING(ADDR_REG)       // When debug module sees this write, the GO flag is reset.
+        modesw.cap                     // Return to capmode so we restore for capabilities from registers
         RESTORE
         jal zero, whereto
 
 _resume:
+        modesw.int
         csrr s0, CSR_MHARTID
-        sw   s0, RESUMING(ADDR_REG)   // When Debug Module sees this write, the RESUME flag is reset.
+        sw   s0, RESUMING(ADDR_REG)    // When Debug Module sees this write, the RESUME flag is reset.
+        modesw.cap                     // Return to capmode so we restore for capabilities from registers
         RESTORE
         dret
 
