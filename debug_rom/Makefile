@@ -13,7 +13,7 @@ all: $(debug_rom)
 	$(PYTHON) gen_rom.py $<
 
 %.img: %.bin
-	dd if=$< of=$@ bs=256 count=1
+	dd if=$< of=$@ bs=256
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
