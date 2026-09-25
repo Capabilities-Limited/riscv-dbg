@@ -42,21 +42,21 @@ reentry_intmode:
 
 // Common code shared between entry and re-entry cases
 #ifdef SND_SCRATCH
-#define SETUP                  //
-        fence                  // This fence is required because the execution may have written something
-                               // into the Abstract Data or Program Buffer registers.
-        csrw CSR_DSCRATCH0, s0 // Save s0 to allow signaling MHARTID
-        csrw CSR_DSCRATCH1, a0 // Save a0 to allow loading arbitrary DM base
-        auipc a0, 0            // Get PC
-        srli a0, a0, 12        // And throw away lower 12 bits to get the DM base
-        slli a0, a0, 12        //
-        modesw.int             //
+#define SETUP                                                                                                  \
+        fence                  ; /* This fence is required because the execution may have written something */ \
+                                 /* into the Abstract Data or Program Buffer registers.                     */ \
+        csrw CSR_DSCRATCH0, s0 ; /* Save s0 to allow signaling MHARTID                                      */ \
+        csrw CSR_DSCRATCH1, a0 ; /* Save a0 to allow loading arbitrary DM base                              */ \
+        auipc a0, 0            ; /* Get PC                                                                  */ \
+        srli a0, a0, 12        ; /* And throw away lower 12 bits to get the DM base                         */ \
+        slli a0, a0, 12        ;                                                                               \
+        modesw.int
 #else
-#define SETUP                  //
-        fence                  // This fence is required because the execution may have written something
-                               // into the Abstract Data or Program Buffer registers.
-        csrw CSR_DSCRATCH0, s0 // Save s0 to allow signaling MHARTID
-        modesw.int             //
+#define SETUP                    /*                                                                         */ \
+        fence                  ; /* This fence is required because the execution may have written something */ \
+                                 /* into the Abstract Data or Program Buffer registers.                     */ \
+        csrw CSR_DSCRATCH0, s0 ; /* Save s0 to allow signaling MHARTID                                      */ \
+        modesw.int
 #endif
 
 _reentry_capmode:
@@ -150,9 +150,14 @@ _resume:
 
 // Common restore code used by intmode and capmode cases
 #ifdef SND_SCRATCH
-#define RESTORE                //
-        csrr a0, CSR_DSCRATCH1 // Restore a0 here
-        csrr s0, CSR_DSCRATCH0 // Restore s0 here
+#define RESTORE \
+        csrr a0, CSR_DSCRATCH1 ; /* Restore a0 here */ \
+        csrr s0, CSR_DSCRATCH0   /* Restore s0 here */
+#else
+#define RESTORE \
+        csrr s0, CSR_DSCRATCH0   /* Restore s0 here */
+#endif
+
 
 #else
 #define RESTORE                //
@@ -163,6 +168,10 @@ _resume:
         // the code paths with the different modesw instructions at the end
 going:
         // Check the target mode
+        csrr s0, mhartid
+#ifdef SND_SCRATCH
+        add  s0, s0, a0
+#endif
         lbu  s0, FLAGS(s0)
         andi s0, s0, (1 << FLAG_INT_MODE)
         modesw.int             //
