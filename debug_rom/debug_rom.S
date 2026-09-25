@@ -33,8 +33,10 @@ entry:
         jal zero, _entry
 resume:
         jal zero, _resume
-exception:
-        jal zero, _exception
+exception_capmode:
+        jal zero, _exception_capmode
+exception_intmode:
+        jal zero, _exception_intmode
 reentry_capmode:
         jal zero, _reentry_capmode
 reentry_intmode:
@@ -105,32 +107,6 @@ entry_loop:
         bnez s0, resume
         jal  zero, entry_loop
 
-// TODO: exception case does not correctly handle saving of int_mode.
-// I (pdr32) also believe it doesn't handle the integer registers correctly:
-// see https://github.com/pulp-platform/riscv-dbg/issues/207
-_exception:
-        // We can only get here due to an exception while in debug mode. Hence,
-        // we do not need to save a0 to a scratch register as it has already
-        // been saved on debug entry.
-        modesw.int
-#ifdef SND_SCRATCH
-        auipc a0, 0                  // Get PC
-        srli a0, a0, 12              // And throw away lower 12 bits to get the DM base
-        slli a0, a0, 12
-        sw   zero, EXCEPTION(a0)     // Let debug module know you got an exception.
-        // It is safe to always restore the scratch registers here as they must
-        // have been saved on debug entry. Restoring them here avoids issues
-        // with registers being overwritten by exceptions occuring during
-        // program buffer execution.
-        modesw.cap
-        csrr a0, CSR_DSCRATCH1       // Restore a0 here
-#else
-        sw   zero, EXCEPTION(zero)   // Let debug module know you got an exception.
-        modesw.cap
-#endif
-        csrr s0, CSR_DSCRATCH0       // Restore s0 here
-        ebreak
-
 _resume:
         modesw.int
         csrr s0, CSR_MHARTID
@@ -158,11 +134,31 @@ _resume:
         csrr s0, CSR_DSCRATCH0   /* Restore s0 here */
 #endif
 
-
+_exception_capmode:
+        SETUP
+        csrr s0, CSR_MHARTID
+#ifdef SND_SCRATCH
+        sw   s0, EXCEPTION(a0)
 #else
-#define RESTORE                //
-        csrr s0, CSR_DSCRATCH0 // Restore s0 here
+        sw   s0, EXCEPTION(zero)
 #endif
+        modesw.cap
+        RESTORE
+        ebreak
+
+_exception_intmode:
+        SETUP
+        csrr s0, CSR_MHARTID
+#ifdef SND_SCRATCH
+        sw   s0, EXCEPTION(a0)
+#else
+        sw   s0, EXCEPTION(zero)
+#endif
+        modesw.cap
+        RESTORE
+        modesw.int
+        ebreak
+
 
         // On the restore path, we don't have a safe register to store state, so duplicate
         // the code paths with the different modesw instructions at the end
