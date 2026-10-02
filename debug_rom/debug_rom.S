@@ -84,7 +84,7 @@ reentry_intmode:
         SAVE                   ; /* Save registers. For CHERI, this needs  */ \
                                  /* to save full capabilities. We assume   */ \
                                  /* we enter the debug ROM in capmode      */ \
-        modesw.int             ; /* Switch to int mode for mem accesses    */ \
+        ymodeswi               ; /* Switch to int mode for mem accesses    */ \
         GET_DM_BASE
 
 
@@ -133,18 +133,18 @@ entry_loop:
 // the scratch registers: see https://github.com/pulp-platform/riscv-dbg/issues/207
 // However, we do have to save whether we finished execution in intmode or capmode.
 _exception_capmode:
-        modesw.int                     // Switch to intmode for mem access
+        ymodeswi                       // Switch to intmode for mem access
         sw   zero, EXCEPTION(ADDR_REG) // Let debug module know you got an exception.
-        modesw.cap                     // Return to capmode so we restore for capabilities from registers
+        ymodeswy                       // Return to capmode so we restore for capabilities from registers
         RESTORE
         ebreak                         // Ebreak in capmode to preserve the mode we took exception from
 
 _exception_intmode:
-        modesw.int                     // Switch to intmode for mem access
+        ymodeswi                       // Switch to intmode for mem access
         sw   zero, EXCEPTION(ADDR_REG) // Let debug module know you got an exception.
-        modesw.cap                     // Return to capmode so we restore for capabilities from registers
+        ymodeswy                       // Return to capmode so we restore for capabilities from registers
         RESTORE
-        modesw.int
+        ymodeswi
         ebreak                         // Ebreak in intmode to preserve the mode we took exception from
 
 going:
@@ -155,23 +155,23 @@ going:
 #endif
         lbu s0, FLAGS(s0)
         andi s0, s0, (1 << FLAG_INT_MODE)
-        modesw.cap                     // Return to capmode so we restore for capabilities from registers
+        ymodeswy                       // Return to capmode so we restore for capabilities from registers
         beqz s0, going_capmode         // Different codepaths from here for intmode and capmode: there's
                                        // nowhere else to save this information after we restore registers
                                        // (which requires capmode)
 going_intmode:
         RESTORE
-        modesw.int
+        ymodeswi
         jal zero, whereto
 going_capmode:
         RESTORE
         jal zero, whereto
 
 _resume:
-        modesw.int
+        ymodeswi
         csrr s0, CSR_MHARTID
         sw   s0, RESUMING(ADDR_REG)    // When Debug Module sees this write, the RESUME flag is reset.
-        modesw.cap                     // Return to capmode so we restore for capabilities from registers
+        ymodeswy                       // Return to capmode so we restore for capabilities from registers
         RESTORE
         dret
 
