@@ -19,6 +19,7 @@
 #define FLAG_INT_MODE 2
 
         .option norvc
+        .option capmode
         .global entry
         .global exception
 
@@ -56,13 +57,6 @@ reentry_intmode:
         csrr s0, CSR_DSCRATCH0 ; \
         csrr a0, CSR_DSCRATCH1
 
-// Derive DM base address from PC
-#define GET_DM_BASE                                                           \
-        auipc a0, 0            ; /* Get PC                                 */ \
-        srli a0, a0, 12        ; /* And throw away lower 12 bits to get    */ \
-                                 /* the DM base                            */ \
-        slli a0, a0, 12
-
 // Macro to handle debug entry, saving registers and possibly deriving DM base
 #define SETUP                                                                 \
         fence                  ; /* This fence is required because the     */ \
@@ -73,7 +67,7 @@ reentry_intmode:
                                  /* to save full capabilities. We assume   */ \
                                  /* we enter the debug ROM in capmode      */ \
         ymodeswi               ; /* Switch to int mode for mem accesses    */ \
-        GET_DM_BASE
+        lly a0, debug_base
 
 
 _reentry_capmode:
@@ -120,7 +114,8 @@ entry_loop:
 // However, we do have to save whether we finished execution in intmode or capmode.
 _exception_capmode:
         ymodeswi                 // Switch to intmode for mem access
-        GET_DM_BASE
+        lly a0, debug_base
+
         sw   zero, EXCEPTION(a0) // Let debug module know you got an exception.
         ymodeswy                 // Return to capmode so we restore for capabilities from registers
         RESTORE
@@ -128,7 +123,7 @@ _exception_capmode:
 
 _exception_intmode:
         ymodeswi                 // Switch to intmode for mem access
-        GET_DM_BASE
+        lly a0, debug_base
         sw   zero, EXCEPTION(a0) // Let debug module know you got an exception.
         ymodeswy                 // Return to capmode so we restore for capabilities from registers
         RESTORE
