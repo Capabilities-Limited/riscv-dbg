@@ -185,8 +185,16 @@ module dm_mem #(
       end
 
       Resume: begin
-        cmdbusy_o = 1'b1;
+        // Resuming is not an abstract command, so do not indicate busy
+        cmdbusy_o = 1'b0;
         resume = 1'b1;
+
+        // Hart is no longer halted so give Halt/Resume error on cmd req
+        if (cmd_valid_i) begin
+          cmderror_valid_o = 1'b1;
+          cmderror_o = dm::CmdErrorHaltResume;
+        end
+
         if (resuming_q_aligned[hartsel]) begin
           state_d = Idle;
         end
