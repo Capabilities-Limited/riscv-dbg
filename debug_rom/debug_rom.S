@@ -96,11 +96,13 @@ reentry_intmode:
 
 _reentry_capmode:
         SETUP
+        csrr s0, CSR_MHARTID
         sw s0, CAPMODE(ADDR_REG) // Save that the progbuf finished in capmode
         jal zero, entry_loop
 
 _reentry_intmode:
         SETUP
+        csrr s0, CSR_MHARTID
         sw s0, INTMODE(ADDR_REG) // Save that the progbuf finished in intmode
         jal zero, entry_loop
 
