@@ -153,8 +153,13 @@ module dm_mem #(
       Idle: begin
         cmdbusy_o = 1'b0;
         if (cmd_valid_i && halted_q_aligned[hartsel] && !unsupported_command) begin
-          // give the go signal
-          state_d = Go;
+          if (cmd_i.cmdtype == dm::AccessRegister && !ac_ar.transfer && !ac_ar.postexec) begin
+            // nop: stay in idle
+            state_d = Idle;
+          end else begin
+            // give the go signal
+            state_d = Go;
+          end
         end else if (cmd_valid_i) begin
           // hart must be halted for all requests
           cmderror_valid_o = 1'b1;
@@ -388,7 +393,11 @@ module dm_mem #(
       // Access Register
       // --------------------
       dm::AccessRegister: begin
-        if (32'(ac_ar.aarsize) < MaxAar && ac_ar.transfer && ac_ar.write) begin
+        if (!ac_ar.transfer) begin
+          // Nop: immediately return from buffer
+          // If postexec is set we would have jumped straight to the progbuf in this case
+          abstract_cmd[0][31:0] = dm::ebreak();
+        end else if (32'(ac_ar.aarsize) < MaxAar && ac_ar.transfer && ac_ar.write) begin
           // store a0 in dscratch1
           abstract_cmd[0][31:0] = HasSndScratch ? dm::csrw(dm::CSR_DSCRATCH1, 5'd10) : dm::nop();
           // this range is reserved
