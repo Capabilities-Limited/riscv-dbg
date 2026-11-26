@@ -66,7 +66,6 @@ reentry_intmode:
         SAVE                   ; /* Save registers. For CHERI, this needs  */ \
                                  /* to save full capabilities. We assume   */ \
                                  /* we enter the debug ROM in capmode      */ \
-        ymodeswi               ; /* Switch to int mode for mem accesses    */ \
         lly a0, debug_base
 
 
@@ -91,12 +90,12 @@ _entry:
 entry_loop:
         csrr s0, CSR_MHARTID
         sw   s0, HALTED(a0)
-        add  s0, s0, a0
+        yadd s0, a0, s0
         lbu  s0, FLAGS(s0) // 1 byte flag per hart. Only one hart advances here.
         andi s0, s0, (1 << FLAG_GO)
         bnez s0, going
         csrr s0, CSR_MHARTID
-        add  s0, s0, a0
+        yadd s0, a0, s0
         lbu  s0, FLAGS(s0) // multiple harts can resume  here
         andi s0, s0, (1 << FLAG_RESUME)
         bnez s0, resume
@@ -113,19 +112,15 @@ entry_loop:
 // the scratch registers: see https://github.com/pulp-platform/riscv-dbg/issues/207
 // However, we do have to save whether we finished execution in intmode or capmode.
 _exception_capmode:
-        ymodeswi                 // Switch to intmode for mem access
         lly a0, debug_base
 
         sw   zero, EXCEPTION(a0) // Let debug module know you got an exception.
-        ymodeswy                 // Return to capmode so we restore for capabilities from registers
         RESTORE
         ebreak                   // Ebreak in capmode to preserve the mode we took exception from
 
 _exception_intmode:
-        ymodeswi                 // Switch to intmode for mem access
         lly a0, debug_base
         sw   zero, EXCEPTION(a0) // Let debug module know you got an exception.
-        ymodeswy                 // Return to capmode so we restore for capabilities from registers
         RESTORE
         ymodeswi
         ebreak                   // Ebreak in intmode to preserve the mode we took exception from
@@ -133,10 +128,9 @@ _exception_intmode:
 going:
         sw zero, GOING(a0)       // When debug module sees this write, the GO flag is reset.
         csrr s0, mhartid         // Ask the debug module what the target mode is
-        add s0, s0, a0
+        yadd s0, a0, s0
         lbu s0, FLAGS(s0)
         andi s0, s0, (1 << FLAG_INT_MODE)
-        ymodeswy                       // Return to capmode so we restore for capabilities from registers
         beqz s0, going_capmode         // Different codepaths from here for intmode and capmode: there's
                                        // nowhere else to save this information after we restore registers
                                        // (which requires capmode)
@@ -149,10 +143,8 @@ going_capmode:
         jal zero, whereto
 
 _resume:
-        ymodeswi
         csrr s0, CSR_MHARTID
         sw   s0, RESUMING(a0)  // When Debug Module sees this write, the RESUME flag is reset.
-        ymodeswy               // Return to capmode so we restore for capabilities from registers
         RESTORE
         dret
 
