@@ -24,6 +24,7 @@ module dm_mem #(
 ) (
   input  logic                             clk_i,       // Clock
   input  logic                             rst_ni,      // debug module reset
+  input  logic                             dmactive_i,  // Synchronous active-low reset
 
   output logic [NrHarts-1:0]               debug_req_o,
   input  logic                             ndmreset_i,
@@ -546,12 +547,11 @@ module dm_mem #(
     if (!rst_ni) begin
       fwd_rom_q       <= 1'b0;
       rdata_q         <= '0;
-      state_q         <= Idle;
       word_enable32_q <= 1'b0;
     end else begin
+      // Do not reset these on !dmactive so HART can continue to read ROM
       fwd_rom_q       <= fwd_rom_d;
       rdata_q         <= rdata_d;
-      state_q         <= state_d;
       word_enable32_q <= addr_i[2];
     end
   end
@@ -561,10 +561,19 @@ module dm_mem #(
       halted_q   <= 1'b0;
       resuming_q <= 1'b0;
       int_mode_q <= '1;
+      state_q    <= Idle;
     end else begin
-      halted_q   <= SelectableHarts & halted_d;
-      resuming_q <= SelectableHarts & resuming_d;
-      int_mode_q <= SelectableHarts & int_mode_d;
+      if (!dmactive_i) begin
+        halted_q   <= 1'b0;
+        resuming_q <= 1'b0;
+        int_mode_q <= '1;
+        state_q    <= Idle;
+      end else begin
+        halted_q   <= SelectableHarts & halted_d;
+        resuming_q <= SelectableHarts & resuming_d;
+        int_mode_q <= SelectableHarts & int_mode_d;
+        state_q    <= state_d;
+      end
     end
   end
 
