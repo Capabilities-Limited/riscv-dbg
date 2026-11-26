@@ -28,24 +28,29 @@
         // their GO or RESUME bit is set.
         // For CHERI, we always enter in capmode
 
+.balign 8
 entry:
         jal zero, _entry
-        nop
+
+.balign 8
 resume:
         jal zero, _resume
-        nop
+
+.balign 8
 exception_capmode:
         jal zero, _exception_capmode
-        nop
+
+.balign 8
 exception_intmode:
         jal zero, _exception_intmode
-        nop
+
+.balign 8
 reentry_capmode:
         jal zero, _reentry_capmode
-        nop
+
+.balign 8
 reentry_intmode:
         jal zero, _reentry_intmode
-        nop
 
 // Macro to save registers
 #define SAVE                     \
