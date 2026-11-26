@@ -140,6 +140,7 @@ entry_loop:
 // However, we do have to save whether we finished execution in intmode or capmode.
 _exception_capmode:
         ymodeswi                       // Switch to intmode for mem access
+        GET_DM_BASE
         sw   zero, EXCEPTION(ADDR_REG) // Let debug module know you got an exception.
         ymodeswy                       // Return to capmode so we restore for capabilities from registers
         RESTORE
@@ -147,6 +148,7 @@ _exception_capmode:
 
 _exception_intmode:
         ymodeswi                       // Switch to intmode for mem access
+        GET_DM_BASE
         sw   zero, EXCEPTION(ADDR_REG) // Let debug module know you got an exception.
         ymodeswy                       // Return to capmode so we restore for capabilities from registers
         RESTORE
